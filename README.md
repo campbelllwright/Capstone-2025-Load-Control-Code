@@ -29,7 +29,7 @@ pip install numpy pyvisa
 If you wish to develop this code further, or include it in your group git repo, you may wish to install these libraries using a [virtual environment](https://docs.python.org/3/library/venv.html).
 
 ## Running Code 
-Once everything is installed, connect the load to your personal computer with the USB cable (leave this plugged in to the load in the lab). 
+Once everything is installed (the example code was developed using Python 3.12 and pyVISA 1.14), connect the load to your personal computer with the USB cable (leave this plugged in to the load in the lab). 
 After the load is connected it should appear as a VISA resource. 
 
 ### Keysight Connection Expert
@@ -82,4 +82,4 @@ load.close()
 ```
 
 ## Issues 
-For any issues, contact the course teaching staff or email [alexander.bailey@auckland.ac.nz](mailto:alexander.bailey@auckland.ac.nz)
+For any issues, contact the course teaching staff or email [seho.kim@auckland.ac.nz](mailto:alexander.bailey@auckland.ac.nz)
