@@ -81,5 +81,12 @@ load.write(':INPut OFF') # ensure load off
 load.close()
 ```
 
+## More realistic load profiles 'real_load_test.py'
+
+Once your hardware works with the standard 'load_control.py' you may want to test your hardware with a more realistic load profile. 
+The file ```real_load_test.py``` downloads real telemetry from formula one races and converts it into a load suitable for this project. 
+To run this file you must install the python library []
+
+
 ## Issues 
 For any issues, contact the course teaching staff or email [seho.kim@auckland.ac.nz](mailto:alexander.bailey@auckland.ac.nz)
