@@ -152,8 +152,8 @@ def frame_from_profile_data(data, i):
 
 def removeZeros(load_frames):
     new_load_frames = load_frames
-    for (index,current) in load_frames[2]:
-        if (current == 0):
+    for (index,current) in enumerate(load_frames[2]):
+        if (int(current*1000) == 0):
             del(new_load_frames[1][index])
             del(new_load_frames[2][index])
             del(new_load_frames[3][index])
@@ -164,14 +164,14 @@ def removeZeros(load_frames):
 
 def writeCSV(load_frames, dump_frames, r_data, filename):
     if(os.path.exists(filename)):
-        with open(filename, '+w') as csvfile:
+        with open(filename, '+w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
             for (i,t) in enumerate(load_frames[0]):
                 csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
     else:
-        with open(filename, 'x') as csvfile:
-            csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',')
+        with open(filename, 'x', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
             csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
             for (i,t) in enumerate(load_frames[0]):
                 csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])

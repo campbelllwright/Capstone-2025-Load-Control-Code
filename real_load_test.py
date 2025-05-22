@@ -36,6 +36,7 @@ rm = visa.ResourceManager()
 load = rm.open_resource(LOADADDR)
 load.read_termination = '\n'
 load.write_termination = '\n'
+load.write(':INPut OFF') # ensure load off 
 
 
 def print_load(profile):
@@ -50,7 +51,8 @@ profile_data = [[],[],[],[]]#EVOload.calculate_theo_load_data_from_resistance_pr
 
 res_data = []
 def write_load(i,res):
-    res_data.append(res)
+    res_data.append(int(res*1000))
+    
     profile_data[0].append(T*i)
     profile_data[1].append(float(load.query(':MEASure:VOLTage?').removesuffix("V")))
     profile_data[2].append(float(load.query(':MEASure:CURRent?').removesuffix("A")))
@@ -63,8 +65,10 @@ def write_load(i,res):
 print(pico.picotool_force_reboot_ecu()) # reboot ECU before we start 
 time.sleep(7)
 print('Starting experiment')
-load.write(':INPut ON') # turn on load 
 load.write(':FUNCtion RES') # CR mode 
+load.write(f':RESistance {100}OHM')
+load.write(':INPut ON') # turn on load 
+
 
 
 
@@ -84,6 +88,9 @@ time.sleep(5) # wait for dump
 
 dump = Evo_EF.parseEFBinDump("dumps/"+filename+"_Meas.bin") #parse binary dump into lists for time, voltage, current, power
 profile_data = Evo_EF.removeZeros(profile_data)
+for (i, t) in enumerate(profile_data[0]):
+    print(f"{print_load(Evo_EF.frame_from_profile_data(profile_data, i))}, R:{res_data[i]}ohm") 
+    #time.sleep(0.5)
 #the lists are usually off by 1-2 readings, we strip or pad to make them match for better graphing
 dump = [Evo_EF.match_list_lengths(dump[0], profile_data[0]),Evo_EF.match_list_lengths(dump[1], profile_data[1]),Evo_EF.match_list_lengths(dump[2], profile_data[2]),Evo_EF.match_list_lengths(dump[3], profile_data[3])]
 
