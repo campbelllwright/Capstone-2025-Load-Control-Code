@@ -1,6 +1,6 @@
 # Capstone 2025 Load Control 
 
-This repository contains example code and resources for the Capstone 2025 course at the University of Auckland. 
+This repository contains example code and resources for the Capstone 2025 course at the University of Auckland.
 It is intended to assist students implementing a controller for the benchtop DC load provided in the lab using Python and provide guidance for setting up and running the required software.
 The example code demonstrates a ramped constant resistance load using pyVISA.
 
@@ -51,42 +51,37 @@ rm = pyvisa.ResourceManager()
 rm.list_resources()
 ```
 
-## Example Code 
-```python
-import pyvisa as visa 
-import numpy as np
-import time
-
-rm = visa.ResourceManager()
-
-LOADADDR = 'ASRL5::INSTR' # change to match assigned address for your computer/load
-load = rm.open_resource(LOADADDR)
-
-load.write(':INPut ON') # turn on load 
-load.write(':FUNCtion RES') # CR mode 
-
-START = 4  # ohm
-STOP = 12 # ohm
-PERIOD = 10 # s 
-UPDATETIME = 0.05 # s
-step = (STOP-START)/(PERIOD/UPDATETIME)
-for load_step in np.arange(START, STOP, step): # RAMP UP
-    load.write(f':RESistance {load_step}OHM')
-    time.sleep(UPDATETIME)
-for load_step in np.flip(np.arange(START, STOP, step)): # RAMP DOWN
-    load.write(f':RESistance {load_step}OHM')
-    time.sleep(UPDATETIME)
-
-load.write(':INPut OFF') # ensure load off 
-load.close()
-```
 
 ## More realistic load profiles 'real_load_test.py'
 
 Once your hardware works with the standard 'load_control.py' you may want to test your hardware with a more realistic load profile. 
-The file ```real_load_test.py``` downloads real telemetry from formula one races and converts it into a load suitable for this project. 
-To run this file you must install the python library []
+The file ```real_load_test.py``` downloads real telemetry from formula one races and converts it into a load suitable for this project.  
+To run this file you must install the python library [FastF1](https://docs.fastf1.dev/index.html)
+
+Modify the config shown below to match your setup and desired load profile.
+```python
+## Config:
+LOADADDR = 'ASRL26::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
+
+# Prog_load settings:
+RMIN = 4  # ohm
+RMAX = 100 # ohm
+T = 0.05 # load update period 
+
+# Board info: for calculating theoretical values
+RSHUNT = 0.092 # ohm
+VSUPPLY = 12 # volt
+
+# Profile Settings:
+EVENT ='Monza'
+RACE_TYPE = 'Q'
+YEAR = 2023
+DRIVER = 'VER'
+
+```
 
 
 ## Issues 
-For any issues, contact the course teaching staff or email [seho.kim@auckland.ac.nz](mailto:alexander.bailey@auckland.ac.nz)
+For any issues specifically related to these scripts, email [campbell.wright@auckland.ac.nz](mailto:campbell.wright@auckland.ac.nz).
+
+For any other issues, contact the course teaching staff or email [seho.kim@auckland.ac.nz](mailto:alexander.bailey@auckland.ac.nz)

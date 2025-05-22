@@ -1,70 +1,92 @@
-import fastf1
+
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import matplotlib.pyplot as plt
 import numpy as np
 import time 
 import pyvisa as visa 
+import picotool_helper_funcs as pico
+import EVolocity_EF_utils as Evo_EF
+import evolocity_load as EVOload
 
-# enable cache (if you want to run each race faster)
-fastf1.Cache.enable_cache('cache')
 
-# disable logging 
-fastf1.set_log_level('WARNING')
+## Config:
+LOADADDR = 'ASRL26::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
 
-# load a session (you can change event, year, and session type)
-print('Loading session...')
-session = fastf1.get_session(2023, 'Monza', 'Q')
-session.load()
+# Prog_load settings:
+RMIN = 4  # ohm
+RMAX = 100 # ohm
+T = 0.05 # load update period 
 
-# Select a driver and their fastest lap
-driver = 'VER'
-lap = session.laps.pick_driver(driver).pick_fastest()
+# Board info: for calculating theoretical values
+RSHUNT = 0.092 # ohm
+VSUPPLY = 12 # volt
 
-# Get car telemetry and add time and distance
-tel = lap.get_car_data().add_distance()
+# Profile Settings:
+EVENT ='Monza'
+RACE_TYPE = 'Q'
+YEAR = 2023
+DRIVER = 'VER'
+filename = f'{DRIVER}_{EVENT}_{YEAR}_{RACE_TYPE}'
 
-speed = tel['Speed'].values  # in km/h
-time_s = tel['Time'].dt.total_seconds().values  # in seconds
-speed_mps = speed * (1000 / 3600) # m/s
-accel = np.gradient(speed_mps, time_s) # m/s2
-
-accel_min = np.min(accel)
-accel_max = np.max(accel)
-accel_clipped = np.clip(accel, accel_min, accel_max)
-R = 100 - ((accel_clipped - accel_min) / (accel_max - accel_min)) * (100 - 4)
+# If using the picotool funcs you may need to set the energy flash region start and end addresses.
 
 
 rm = visa.ResourceManager()
-LOADADDR = 'ASRL5::INSTR' # change to match assigned address for your computer/load
 load = rm.open_resource(LOADADDR)
 
-plt.ion()  # turn on interactive mode
-fig, ax = plt.subplots()
-plt.title(f'{driver} - Simulated Load from Acceleration\n{session.event["EventName"]} {session.event.year}')
-plt.xlabel('Real Time [s]')
-plt.ylabel(r'Load [$\Omega$] (from acceleration data)')
-plt.grid(True)
+def write_load(res):
+    load.write(f':RESistance {res}OHM')
+    
+def print_load(profile):
+    print(f'T:{int(profile[0]*1000)}ms, V:{int(profile[1]*1000)}mV, I:{int(profile[2]*1000)}mA, P:{int(profile[3]*1000)}mW')
 
-T = 0.05 # load update period 
-x_data, y_data = [], []
-line, = ax.plot([], [], color='red')
 
-# set axis limits
-ax.set_xlim(0, len(R) * T)
-ax.set_ylim(np.min(R) - 5, np.max(R) + 5)
+def frame_from_profile_data(profile_data, i):
+    return [profile_data[0][i], profile_data[1][i],profile_data[2][i],profile_data[3][i]]
 
+
+print(pico.picotool_force_reboot_ecu()) # reboot ECU before we start 
+time.sleep(7)
 print('Starting experiment')
 load.write(':INPut ON') # turn on load 
 load.write(':FUNCtion RES') # CR mode 
-for i, r in enumerate(R):
-    load.write(f':RESistance {r}OHM')
-    x_data.append(i * T)
-    y_data.append(r)
-    line.set_data(x_data, y_data)
-    plt.pause(T)  # Update the plot
-    time.sleep(T)
 
-print('Race complete!')
+
+R = EVOload.get_Rload_from_fastf1(DRIVER, YEAR, EVENT, RACE_TYPE, RMAX, RMIN)
+profile_data = EVOload.calculate_theo_load_data_from_resistance_profile(R, VSUPPLY, RSHUNT, T)
+EVOload.timed_loop_with_enumerate(R,T,write_load) #change load to next R every T seconds
 load.write(':INPut OFF') # ensure load off 
+
+# print the theo data to terminal
+for (i, t) in enumerate(profile_data[0]):
+    print_load(frame_from_profile_data(profile_data, i)) 
+    #time.sleep(0.5)
+    
+
+print(pico.picotool_force_reboot_ecu_bootsel()) #Reboot ECU into bootsel mode to dump flash
+time.sleep(1) # wait for reboot
+print(pico.picotool_get_dump_from_ecu("dumps/"+filename+"_Meas.bin")) # dump region of flash with energy data
+time.sleep(5) # wait for dump
+
+dump = Evo_EF.parseEFBinDump("dumps/"+filename+"_Meas.bin") #parse binary dump into lists for time, voltage, current, power
+
+#the lists are usually off by 1-2 readings, we strip or pad to make them match for better graphing
+dump = [Evo_EF.match_list_lengths(dump[0], profile_data[0]),Evo_EF.match_list_lengths(dump[1], profile_data[1]),Evo_EF.match_list_lengths(dump[2], profile_data[2]),Evo_EF.match_list_lengths(dump[3], profile_data[3])]
+
+# graph the data
+Evo_EF.graphEFDumpVsTheo(dump, profile_data, "plots/"+filename+"both.png")
+
+#calculate energy
+energy_theo = 0
+for (i,p) in enumerate(profile_data[3]):
+    energy_theo += p*T
+energy_real = 0
+for (i,p) in enumerate(dump[3]):
+    energy_real += p*T
+
+print(f"Race complete! filename:{filename}.[xyz], energy(T/R):{energy_theo}/{energy_real}j, avg power(T/R): {np.average(profile_data[3])}/{np.average(dump[3])}W")
+plt.pause(300) 
+
 load.close()
+
