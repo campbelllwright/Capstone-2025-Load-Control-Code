@@ -39,7 +39,7 @@ def get_Rload_from_fastf1(driver, year, event,type, RMAX, RMIN):
 def timed_loop_with_enumerate(iterable, interval_seconds, run_func):
     start_time = time.time()
     for index, item in enumerate(iterable):
-        run_func(item)
+        run_func(index,item)
         time_elapsed = time.time() - start_time
         time_to_sleep = max(0, interval_seconds - time_elapsed)
         time.sleep(time_to_sleep)

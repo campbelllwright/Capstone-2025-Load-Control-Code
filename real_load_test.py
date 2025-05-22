@@ -11,7 +11,7 @@ import evolocity_load as EVOload
 
 
 ## Config:
-LOADADDR = 'ASRL26::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
+LOADADDR = 'ASRL27::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
 
 # Prog_load settings:
 RMIN = 4  # ohm
@@ -34,17 +34,30 @@ filename = f'{DRIVER}_{EVENT}_{YEAR}_{RACE_TYPE}'
 
 rm = visa.ResourceManager()
 load = rm.open_resource(LOADADDR)
+load.read_termination = '\n'
+load.write_termination = '\n'
 
-def write_load(res):
-    load.write(f':RESistance {res}OHM')
-    
+
 def print_load(profile):
-    print(f'T:{int(profile[0]*1000)}ms, V:{int(profile[1]*1000)}mV, I:{int(profile[2]*1000)}mA, P:{int(profile[3]*1000)}mW')
+    return (f'T:{int(profile[0]*1000)}ms, V:{int(profile[1]*1000)}mV, I:{int(profile[2]*1000)}mA, P:{int(profile[3]*1000)}mW')
 
 
 def frame_from_profile_data(profile_data, i):
     return [profile_data[0][i], profile_data[1][i],profile_data[2][i],profile_data[3][i]]
 
+R = EVOload.get_Rload_from_fastf1(DRIVER, YEAR, EVENT, RACE_TYPE, RMAX, RMIN)
+profile_data = [[],[],[],[]]#EVOload.calculate_theo_load_data_from_resistance_profile(R, VSUPPLY, RSHUNT, T)
+res_data = []
+def write_load(i,res):
+    res_data.append(res)
+    profile_data[0].append(T*i)
+    profile_data[1].append(float(load.query(':MEASure:VOLTage?').removesuffix("V")))
+    profile_data[2].append(float(load.query(':MEASure:CURRent?').removesuffix("A")))
+    profile_data[3].append(float(load.query(':MEASure:POWer?').removesuffix("W")))
+    load.write(f':RESistance {res}OHM')
+    
+
+    
 
 print(pico.picotool_force_reboot_ecu()) # reboot ECU before we start 
 time.sleep(7)
@@ -53,14 +66,13 @@ load.write(':INPut ON') # turn on load
 load.write(':FUNCtion RES') # CR mode 
 
 
-R = EVOload.get_Rload_from_fastf1(DRIVER, YEAR, EVENT, RACE_TYPE, RMAX, RMIN)
-profile_data = EVOload.calculate_theo_load_data_from_resistance_profile(R, VSUPPLY, RSHUNT, T)
+
 EVOload.timed_loop_with_enumerate(R,T,write_load) #change load to next R every T seconds
 load.write(':INPut OFF') # ensure load off 
 
 # print the theo data to terminal
 for (i, t) in enumerate(profile_data[0]):
-    print_load(frame_from_profile_data(profile_data, i)) 
+    print(f"{print_load(frame_from_profile_data(profile_data, i))}, R:{res_data[i]}ohm") 
     #time.sleep(0.5)
     
 

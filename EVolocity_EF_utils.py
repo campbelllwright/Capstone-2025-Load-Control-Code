@@ -28,15 +28,22 @@ def parseEFBinDump(filename):
         energy = 0
         frameList = []
         timeList,voltageList,currentList,powerList = [],[],[],[]
-        for frame in enumerate(Frame):
-            if((frame[1][0] != 65535) and (frame[1][2] > 161)): #161
-                energy = energy + frame[1][3]*0.05
-                #frameList.append([frame[1][0]*20, frame[1][1], frame[1][2], frame[1][3]])
-                timeList.append(float(frame[1][0]*50)/1000)
-                voltageList.append(float(frame[1][1])/1000)
-                currentList.append(float(frame[1][2])/1000)
-                powerList.append(float(frame[1][3])/1000)
-                print(f"T:{frame[1][0]*50}ms, v:{frame[1][1]}mV, i:{frame[1][2]}mA, p:{frame[1][3]}mW, E(tot):{energy}")
+        pastFrame = [0,0,0,0]
+        started = 0
+        for (i,frame) in enumerate(Frame): 
+            if((frame[0] != 65535)):
+                if((started == 1) or ((frame[2] - pastFrame[2]) != 0) or (i == 0)): # check for a delta to start parsing
+                    if(i != 0):
+                        started = 1
+                    
+                    energy = energy + float(frame[3])*0.05
+                    #frameList.append([frame[1][0]*20, frame[1][1], frame[1][2], frame[1][3]])
+                    timeList.append(float(frame[0]*50)/1000)
+                    voltageList.append(float(frame[1])/1000)
+                    currentList.append(float(frame[2])/1000)
+                    powerList.append(float(frame[3])/1000)
+                    print(f"T:{frame[0]*50}ms, v:{frame[1]}mV, i:{frame[2]}mA, p:{frame[3]}mW, E(tot):{energy}")
+            pastFrame = frame
         return [timeList,voltageList,currentList,powerList]
 
 
