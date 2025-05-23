@@ -9,112 +9,103 @@ import picotool_helper_funcs as pico
 import EVolocity_EF_utils as Evo_EF
 import evolocity_load as EVOload
 
+import argparse
+arguments_parser = argparse.ArgumentParser("EVOlocity_Load_test")
+arguments_parser.add_argument("-r","--reboot", action=argparse.BooleanOptionalAction, default=True, help="Reboot the pico before starting the run. Default yes.")
+arguments_parser.add_argument("-d","--dump", action=argparse.BooleanOptionalAction, default=True, help = "Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default yes.")
+arguments_parser.add_argument("--csvout", action=argparse.BooleanOptionalAction, default=True, help="output the load (and ECU) data from the run as a CSV - note this may be buggy if sample and load rate are not matched.")
+arguments_parser.add_argument("-l","--loadport", type=int, help="COM port number of programmable load. Required.", required=True)
+arguments_parser.add_argument("--driver", type=str, default='VER', help="F1 driver for load profile.")
+arguments_parser.add_argument("--event", type=str, default='Monza', help="F1 event for load profile.")
+arguments_parser.add_argument("--racetype", type=str, default='Q', help="F1 event type for load profile.")
+arguments_parser.add_argument("--year", type=int, default=2023, help="F1 year for load profile.")
+arguments_parser.add_argument("--ecurate", type=int, default=10,help="ECU Storage rate (Hz). default 10.")
 
+
+
+
+arguments = arguments_parser.parse_args()
 ## Config:
-LOADADDR = 'ASRL19::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
+LOADADDR = f'ASRL{arguments.loadport}::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
 
 # Prog_load settings:
-RMIN = 4  # ohm
-RMAX = 100 # ohm
+
 T = 0.05 # load update period 
 
-FRAME_RATE = 10 #recording/transmission rate of pico
+FRAME_RATE = arguments.ecurate #recording/transmission rate of pico
 MS_PER_FRAME = 1000/FRAME_RATE
 S_PER_FRAME = 1/FRAME_RATE
 
 
-# Board info: for calculating theoretical values
-RSHUNT = 0.092 # ohm
-VSUPPLY = 12 # volt
 
 # Profile Settings:
-EVENT ='Monza'
-RACE_TYPE = 'Q'
-YEAR = 2023
-DRIVER = 'VER'
-filename = f'{DRIVER}_{EVENT}_{YEAR}_{RACE_TYPE}'
+
+filename = f'{arguments.driver}_{arguments.event}_{arguments.year}_{arguments.racetype}'
 
 # If using the picotool funcs you may need to set the energy flash region start and end addresses.
 
 
-rm = visa.ResourceManager()
-load = rm.open_resource(LOADADDR)
-load.read_termination = '\n'
-load.write_termination = '\n'
-load.write(':INPut OFF') # ensure load off 
 
+load = EVOload.setup_load(LOADADDR)
 
-def print_load(profile):
-    return (f'T:{int(profile[0]*1000)}ms, V:{int(profile[1]*1000)}mV, I:{int(profile[2]*1000)}mA, P:{int(profile[3]*1000)}mW')
+R = EVOload.get_Rload_from_fastf1(arguments.driver, arguments.year, arguments.event, arguments.racetype)
 
-
-
-
-R = EVOload.get_Rload_from_fastf1(DRIVER, YEAR, EVENT, RACE_TYPE, RMAX, RMIN)
-
-profile_data = [[],[],[],[]]#EVOload.calculate_theo_load_data_from_resistance_profile(R, VSUPPLY, RSHUNT, T)
+load_data = [[],[],[],[]]
 
 res_data = []
-def write_load(i,res):
+def write_load(load,i,res):
     res_data.append(int(res*1000))
     
-    profile_data[0].append(T*i)
-    profile_data[1].append(float(load.query(':MEASure:VOLTage?').removesuffix("V")))
-    profile_data[2].append(float(load.query(':MEASure:CURRent?').removesuffix("A")))
-    profile_data[3].append(float(load.query(':MEASure:POWer?').removesuffix("W")))
+    load_data[0].append(T*i)
+    load_data[1].append(float(load.query(':MEASure:VOLTage?').removesuffix("V")))
+    load_data[2].append(float(load.query(':MEASure:CURRent?').removesuffix("A")))
+    load_data[3].append(float(load.query(':MEASure:POWer?').removesuffix("W")))
     load.write(f':RESistance {res}OHM')
     
 
     
-
-print(pico.picotool_force_reboot_ecu()) # reboot ECU before we start 
-time.sleep(7)
+if(arguments.reboot):
+    print(pico.picotool_force_reboot_ecu()) # reboot ECU before we start 
+    time.sleep(7)
 print('Starting experiment')
-load.write(':FUNCtion RES') # CR mode 
-load.write(f':RESistance {100}OHM')
 load.write(':INPut ON') # turn on load 
-
-
-
-
-EVOload.timed_loop_with_enumerate(R,T,write_load) #change load to next R every T seconds
+EVOload.timed_loop_with_enumerate(R,T, load,write_load) #change load to next R every T seconds
 load.write(':INPut OFF') # ensure load off 
 
 # print the theo data to terminal
-for (i, t) in enumerate(profile_data[0]):
-    print(f"{print_load(Evo_EF.frame_from_profile_data(profile_data, i))}, R:{res_data[i]}ohm") 
+for (i, t) in enumerate(load_data[0]):
+    print(f"{Evo_EF.print_load(Evo_EF.frame_from_profile_data(load_data, i))}, R:{res_data[i]}ohm") 
     #time.sleep(0.5)
     
 
-print(pico.picotool_force_reboot_ecu_bootsel()) #Reboot ECU into bootsel mode to dump flash
-time.sleep(1) # wait for reboot
-print(pico.picotool_get_dump_from_ecu("dumps/"+filename+"_Meas.bin")) # dump region of flash with energy data
-time.sleep(5) # wait for dump
+if(arguments.dump):
+    print(pico.picotool_force_reboot_ecu_bootsel()) #Reboot ECU into bootsel mode to dump flash
+    time.sleep(1) # wait for reboot
+    print(pico.picotool_get_dump_from_ecu(f"dumps/{filename}_Meas.bin")) # dump region of flash with energy data
+    time.sleep(5) # wait for dump
 
-dump = Evo_EF.parseEFBinDump("dumps/"+filename+"_Meas.bin") #parse binary dump into lists for time, voltage, current, power
+
+dump = Evo_EF.parseEFBinDump(f"dumps/{filename}_Meas.bin", '<HHHH', arguments.ecurate) #parse binary dump into lists for time, voltage, current, power
+
 
 #remove any readings where the current is 0 (i.e. start/ends)
-profile_data = Evo_EF.removeZeros(profile_data)
+load_data = Evo_EF.removeZeros(load_data)
 dump = Evo_EF.removeZeros(dump)
 
-for (i, t) in enumerate(profile_data[0]):
-    print(f"{print_load(Evo_EF.frame_from_profile_data(profile_data, i))}, R:{res_data[i]}ohm") 
+for (i, t) in enumerate(load_data[0]):
+    print(f"{Evo_EF.print_load(Evo_EF.frame_from_profile_data(load_data, i))}, R:{res_data[i]}ohm") 
     #time.sleep(0.5)
 
 
 # graph the data
-Evo_EF.graphEFDumpVsTheo(dump, profile_data, "plots/"+filename+"both.png")
-#Evo_EF.writeCSV(profile_data, dump, res_data, f"results/{filename}.csv")
+Evo_EF.graphEFDumpVsTheo(dump, load_data, "plots/"+filename+"both.png")
+#Evo_EF.writeCSV(load_data, dump, res_data, f"results/{filename}.csv")
 #calculate energy
-energy_theo = 0
-for (i,p) in enumerate(profile_data[3]):
-    energy_theo += p*T
-energy_real = 0
-for (i,p) in enumerate(dump[3]):
-    energy_real += p*S_PER_FRAME
+energy_load = Evo_EF.calc_energy_from_pwr(load_data[3], T)
+energy_ecu = Evo_EF.calc_energy_from_pwr(dump[3], S_PER_FRAME)
 
 
-print(f"Race complete! filename:{filename}.[xyz], energy(T/R):{energy_theo}/{energy_real}j, avg power(T/R): {np.average(profile_data[3])}/{np.average(dump[3])}W")
+print(f"Race complete! filename:{filename}.[xyz], energy(T/R):{energy_load}/{energy_ecu}j, avg power(T/R): {np.average(load_data[3])}/{np.average(dump[3])}W")
 plt.pause(300) 
 
 load.close()

@@ -2,6 +2,28 @@ import fastf1
 import numpy as np
 import time
 
+import pyvisa as visa
+
+RMIN = 4  # ohm
+RMAX = 100 # ohm
+
+load = 0
+rm = visa.ResourceManager()
+
+def setup_load(LOADADDR):
+    load = rm.open_resource(LOADADDR)
+    load.read_termination = '\n'
+    load.write_termination = '\n'
+     
+    load.write(':FUNCtion RES') # CR mode 
+    load.write(f':RESistance {100}OHM')
+    load.write(':INPut OFF') # ensure load off
+    return load
+
+
+
+
+
 def calculate_theo_load_data_from_resistance_profile(R, Vsupply, Rshunt, timeStep):
     profile_data = [[],[],[],[]]
     for (i,r) in enumerate(R):
@@ -15,7 +37,7 @@ def calculate_theo_load_data_from_resistance_profile(R, Vsupply, Rshunt, timeSte
         profile_data[3].append(load_Power)
     return profile_data
 
-def get_Rload_from_fastf1(driver, year, event,type, RMAX, RMIN):
+def get_Rload_from_fastf1(driver, year, event,type):
     # enable cache (if you want to run each race faster)
     #fastf1.Cache.enable_cache('cache')
     fastf1.set_log_level('WARNING')
@@ -36,11 +58,13 @@ def get_Rload_from_fastf1(driver, year, event,type, RMAX, RMIN):
     
 
 
-def timed_loop_with_enumerate(iterable, interval_seconds, run_func):
+def timed_loop_with_enumerate(iterable, interval_seconds,load, run_func):
     start_time = time.time()
     for index, item in enumerate(iterable):
-        run_func(index,item)
+        run_func(load,index,item)
         time_elapsed = time.time() - start_time
         time_to_sleep = max(0, interval_seconds - time_elapsed)
         time.sleep(time_to_sleep)
         start_time = time.time()
+        
+

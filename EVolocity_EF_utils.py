@@ -20,29 +20,26 @@ import sys
 import shutil
 import os
 
-FRAME_RATE = 10
-MS_PER_FRAME = 1000/FRAME_RATE
-S_PER_FRAME = 1/FRAME_RATE
+
+
 
 #This is specific to Team 13's energy frame implementation, you may want to modify or replace this so it works for you.
-def parseEFBinDump(filename):
+def parseEFBinDump(filename, frame_fmt, FRAME_RATE):
+    S_PER_FRAME = 1/FRAME_RATE
     with open(filename, 'rb') as binfile:
-        Frame=struct.iter_unpack('<HHHH',binfile.read())
+        Frame=struct.iter_unpack(frame_fmt,binfile.read())
         energy = 0
-        frameList = []
         timeList,voltageList,currentList,powerList = [],[],[],[]
         pastFrame = [0,0,0,0]
         started = 0
         n = 0
         for (i,frame) in enumerate(Frame): 
             if((frame[0] != 65535)):
-                if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0))): # check for a delta to start parsing or (i == 0)
-                    if(i != 0):
+                if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0))): # check for a delta to start parsing
+                    if((i != 0) and (started == 0)):
                         started = 1
-                    
+                        print(f"Load profile start detected at ECU timestamp {int(i*S_PER_FRAME*1000)}ms")
                     energy = energy + float(frame[3])*S_PER_FRAME
-                    #frameList.append([frame[1][0]*20, frame[1][1], frame[1][2], frame[1][3]])
-                    #timeList.append(float(frame[0]*int(MS_PER_FRAME))/1000)
                     timeList.append(float(n*S_PER_FRAME))
                     voltageList.append(float(frame[1])/1000)
                     currentList.append(float(frame[2])/1000)
@@ -178,6 +175,12 @@ def removeZeros(load_frames):
     return new_load_frames
             
 
+def calc_energy_from_pwr(power_frames, rate):
+    energy = 0
+    for (i,p) in enumerate(power_frames):
+        energy += p*rate
+    return energy
+
 
 def writeCSV(load_frames, dump_frames, r_data, filename):
     if(os.path.exists(filename)):
@@ -194,3 +197,7 @@ def writeCSV(load_frames, dump_frames, r_data, filename):
                 csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
             
             
+
+
+def print_load(profile):
+    return (f'T:{int(profile[0]*1000)}ms, V:{int(profile[1]*1000)}mV, I:{int(profile[2]*1000)}mA, P:{int(profile[3]*1000)}mW')
