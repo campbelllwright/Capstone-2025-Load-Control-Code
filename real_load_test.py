@@ -11,12 +11,17 @@ import evolocity_load as EVOload
 
 
 ## Config:
-LOADADDR = 'ASRL27::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
+LOADADDR = 'ASRL19::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
 
 # Prog_load settings:
 RMIN = 4  # ohm
 RMAX = 100 # ohm
 T = 0.05 # load update period 
+
+FRAME_RATE = 10 #recording/transmission rate of pico
+MS_PER_FRAME = 1000/FRAME_RATE
+S_PER_FRAME = 1/FRAME_RATE
+
 
 # Board info: for calculating theoretical values
 RSHUNT = 0.092 # ohm
@@ -87,23 +92,26 @@ print(pico.picotool_get_dump_from_ecu("dumps/"+filename+"_Meas.bin")) # dump reg
 time.sleep(5) # wait for dump
 
 dump = Evo_EF.parseEFBinDump("dumps/"+filename+"_Meas.bin") #parse binary dump into lists for time, voltage, current, power
+
+#remove any readings where the current is 0 (i.e. start/ends)
 profile_data = Evo_EF.removeZeros(profile_data)
+dump = Evo_EF.removeZeros(dump)
+
 for (i, t) in enumerate(profile_data[0]):
     print(f"{print_load(Evo_EF.frame_from_profile_data(profile_data, i))}, R:{res_data[i]}ohm") 
     #time.sleep(0.5)
-#the lists are usually off by 1-2 readings, we strip or pad to make them match for better graphing
-dump = [Evo_EF.match_list_lengths(dump[0], profile_data[0]),Evo_EF.match_list_lengths(dump[1], profile_data[1]),Evo_EF.match_list_lengths(dump[2], profile_data[2]),Evo_EF.match_list_lengths(dump[3], profile_data[3])]
+
 
 # graph the data
 Evo_EF.graphEFDumpVsTheo(dump, profile_data, "plots/"+filename+"both.png")
-Evo_EF.writeCSV(profile_data, dump, res_data, f"results/{filename}.csv")
+#Evo_EF.writeCSV(profile_data, dump, res_data, f"results/{filename}.csv")
 #calculate energy
 energy_theo = 0
 for (i,p) in enumerate(profile_data[3]):
     energy_theo += p*T
 energy_real = 0
 for (i,p) in enumerate(dump[3]):
-    energy_real += p*T
+    energy_real += p*S_PER_FRAME
 
 
 print(f"Race complete! filename:{filename}.[xyz], energy(T/R):{energy_theo}/{energy_real}j, avg power(T/R): {np.average(profile_data[3])}/{np.average(dump[3])}W")
