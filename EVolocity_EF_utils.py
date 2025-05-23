@@ -26,31 +26,35 @@ import os
 #This is specific to Team 13's energy frame implementation, you may want to modify or replace this so it works for you.
 def parseEFBinDump(filename, frame_fmt, FRAME_RATE):
     S_PER_FRAME = 1/FRAME_RATE
-    with open(filename, 'rb') as binfile:
-        Frame=struct.iter_unpack(frame_fmt,binfile.read())
-        energy = 0
-        timeList,voltageList,currentList,powerList = [],[],[],[]
-        pastFrame = [0,0,0,0]
-        started = 0
-        n = 0
-        for (i,frame) in enumerate(Frame): 
-            if((frame[0] != 65535)):
-                if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0))): # check for a delta to start parsing
-                    if((i != 0) and (started == 0)):
-                        started = 1
-                        print(f"Load profile start detected at ECU timestamp {int(i*S_PER_FRAME*1000)}ms")
-                    energy = energy + float(frame[3])*S_PER_FRAME
-                    timeList.append(float(n*S_PER_FRAME))
-                    voltageList.append(float(frame[1])/1000)
-                    currentList.append(float(frame[2])/1000)
-                    powerList.append(float(frame[3])/1000)
-                    print(f"T:{frame[0]*50}ms, v:{frame[1]}mV, i:{frame[2]}mA, p:{frame[3]}mW, E(tot):{energy}")
-                    n = n+1
-            pastFrame = frame
-        return [timeList,voltageList,currentList,powerList]
+    try:
+        with open(filename, 'rb') as binfile:
+            Frame=struct.iter_unpack(frame_fmt,binfile.read())
+            energy = 0
+            timeList,voltageList,currentList,powerList = [],[],[],[]
+            pastFrame = [0,0,0,0]
+            started = 0
+            n = 0
+            for (i,frame) in enumerate(Frame): 
+                if((frame[0] != 65535)):
+                    if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0))): # check for a delta to start parsing
+                        if((i != 0) and (started == 0)):
+                            started = 1
+                            print(f"Load profile start detected at ECU timestamp {int(i*S_PER_FRAME*1000)}ms")
+                        energy = energy + float(frame[3])*S_PER_FRAME
+                        timeList.append(float(n*S_PER_FRAME))
+                        voltageList.append(float(frame[1])/1000)
+                        currentList.append(float(frame[2])/1000)
+                        powerList.append(float(frame[3])/1000)
+                        print(f"T:{frame[0]*50}ms, v:{frame[1]}mV, i:{frame[2]}mA, p:{frame[3]}mW, E(tot):{energy}")
+                        n = n+1
+                pastFrame = frame
+            return [timeList,voltageList,currentList,powerList]
+    except FileNotFoundError:
+        return None
+    
 
 
-def graphEFDump(framedump, filename):
+def graphLoad(theoframes, filename):
     plt.ion()  # turn on interactive mode
     fig, (ax_v, ax_i, ax_e) = plt.subplots(3,1)
     plt.xlabel('Real Time [s]')
@@ -69,26 +73,24 @@ def graphEFDump(framedump, filename):
                         hspace=0.4)
 
     
-    v_line, = ax_v.plot([], [], color='blue')
-    i_line, = ax_i.plot([], [], color='red')
-    e_line, = ax_e.plot([], [], color='green')
+    v_line_theo, = ax_v.plot([], [], color='blue')
+    i_line_theo, = ax_i.plot([], [], color='blue')
+    e_line_theo, = ax_e.plot([], [], color='blue')
 
     # set axis limits
-    ax_v.set_xlim(np.min(framedump[0]), np.max(framedump[0]))
-    ax_i.set_xlim(np.min(framedump[0]), np.max(framedump[0]))
-    ax_e.set_xlim(np.min(framedump[0]), np.max(framedump[0]))
+    ax_v.set_xlim(np.min(theoframes[0]), np.max(theoframes[0]))
+    ax_i.set_xlim(np.min(theoframes[0]), np.max(theoframes[0]))
+    ax_e.set_xlim(np.min(theoframes[0]), np.max(theoframes[0]))
     
     ax_v.set_ylim(0, 13)
     ax_i.set_ylim(0, 4)
     ax_e.set_ylim(0, 36)
     
-    v_line.set_data(framedump[0], framedump[1])
-    i_line.set_data(framedump[0], framedump[2])
-    e_line.set_data(framedump[0], framedump[3])
+    v_line_theo.set_data(theoframes[0], theoframes[1])
+    i_line_theo.set_data(theoframes[0], theoframes[2])
+    e_line_theo.set_data(theoframes[0], theoframes[3])
     fig.savefig(filename)
     #plt.pause(64)  # Update the plot
-    
-    
 
 def graphEFDumpVsTheo(framedump, theoframes, filename):
     print(f'"theo length: {len(theoframes[0])}, dump len: {len(framedump[0])}')
@@ -182,19 +184,33 @@ def calc_energy_from_pwr(power_frames, rate):
     return energy
 
 
+          
 def writeCSV(load_frames, dump_frames, r_data, filename):
     if(os.path.exists(filename)):
-        with open(filename, '+w', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
-            for (i,t) in enumerate(load_frames[0]):
-                csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
+        csvfile = open(filename, '+w', newline='')
     else:
-        with open(filename, 'x', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
-            csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
-            for (i,t) in enumerate(load_frames[0]):
-                csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
+        csvfile = open(filename, 'x', newline='')
+        
+    csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
+    if(dump_frames != None):
+        csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
+        for (i,t) in enumerate(load_frames[0]):
+            csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
+    else:
+        csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance'])
+        for (i,t) in enumerate(load_frames[0]):
+            csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i]])
+            
+def writeCSV_single(load_frames, r_data, filename):
+    if(os.path.exists(filename)):
+        csvfile = open(filename, '+w', newline='')
+    else:
+        csvfile = open(filename, 'x', newline='')
+        
+    csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
+    csvwriter.writerow(['Timestamp','Voltage','Current','Power','Resistance'])
+    for (i,t) in enumerate(load_frames[0]):
+        csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i]])
             
             
 
