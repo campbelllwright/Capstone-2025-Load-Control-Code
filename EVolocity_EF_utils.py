@@ -27,6 +27,7 @@ import os
 def parseEFBinDump(filename, frame_fmt, FRAME_RATE):
     S_PER_FRAME = 1/FRAME_RATE
     try:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, 'rb') as binfile:
             Frame=struct.iter_unpack(frame_fmt,binfile.read())
             energy = 0
@@ -189,6 +190,7 @@ def writeCSV(load_frames, dump_frames, r_data, filename):
     if(os.path.exists(filename)):
         csvfile = open(filename, '+w', newline='')
     else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         csvfile = open(filename, 'x', newline='')
         
     csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
@@ -205,6 +207,7 @@ def writeCSV_single(load_frames, r_data, filename):
     if(os.path.exists(filename)):
         csvfile = open(filename, '+w', newline='')
     else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         csvfile = open(filename, 'x', newline='')
         
     csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
