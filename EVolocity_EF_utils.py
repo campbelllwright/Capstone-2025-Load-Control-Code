@@ -37,7 +37,7 @@ def parseEFBinDump(filename, frame_fmt, FRAME_RATE):
             n = 0
             for (i,frame) in enumerate(Frame): 
                 if((frame[0] != 65535)):
-                    if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0))): # check for a delta to start parsing
+                    if((started == 1) or ((np.abs(frame[2] - pastFrame[2]) > 1) and (i != 0)) ): # check for a delta to start parsing
                         if((i != 0) and (started == 0)):
                             started = 1
                             print(f"Load profile start detected at ECU timestamp {int(i*S_PER_FRAME*1000)}ms")
