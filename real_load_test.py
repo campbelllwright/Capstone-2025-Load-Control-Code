@@ -80,6 +80,9 @@ if(arguments.load):
     for (i, t) in enumerate(load_data[0]):
         print(f"{Evo_EF.print_load(Evo_EF.frame_from_profile_data(load_data, i))}, R:{res_data[i]}ohm") 
         #time.sleep(0.5)
+    energy_load = Evo_EF.calc_energy_from_pwr(load_data[3], T)
+else:
+    energy_load = 0
     
 
 if(arguments.dump):
@@ -87,13 +90,11 @@ if(arguments.dump):
     time.sleep(1) # wait for reboot
     print(pico.picotool_get_dump_from_ecu(f"dumps/{filename}_Meas.bin")) # dump region of flash with energy data
     time.sleep(5) # wait for dump
+    dump = Evo_EF.parseEFBinDump(f"dumps/{filename}_Meas.bin", '<HHHH', arguments.ecurate) #parse binary dump into lists for time, voltage, current, power
 
-if(arguments.load):
-    energy_load = Evo_EF.calc_energy_from_pwr(load_data[3], T)
-else:
-    energy_load = 0
 
-dump = Evo_EF.parseEFBinDump(f"dumps/{filename}_Meas.bin", '<HHHH', arguments.ecurate) #parse binary dump into lists for time, voltage, current, power
+
+
 if((dump != None) and (arguments.dump)):
     dump = Evo_EF.removeZeros(dump)
     energy_ecu = Evo_EF.calc_energy_from_pwr(dump[3], S_PER_FRAME)
