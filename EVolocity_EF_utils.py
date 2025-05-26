@@ -46,7 +46,7 @@ def parseEFBinDump(filename, frame_fmt, FRAME_RATE):
                         voltageList.append(float(frame[1])/1000)
                         currentList.append(float(frame[2])/1000)
                         powerList.append(float(frame[3])/1000)
-                        print(f"T:{frame[0]*50}ms, v:{frame[1]}mV, i:{frame[2]}mA, p:{frame[3]}mW, E(tot):{energy}")
+                        print(f"T:{frame[0]*50}ms, v:{frame[1]}mV, i:{frame[2]}mA, p:{frame[3]}mW, E(tot):{energy:.2f}")
                         n = n+1
                 pastFrame = frame
             return [timeList,voltageList,currentList,powerList]
@@ -94,7 +94,6 @@ def graphLoad(theoframes, filename):
     #plt.pause(64)  # Update the plot
 
 def graphEFDumpVsTheo(framedump, theoframes, filename):
-    print(f'"theo length: {len(theoframes[0])}, dump len: {len(framedump[0])}')
     plt.ion()  # turn on interactive mode
     fig, (ax_v, ax_i, ax_e) = plt.subplots(3,1)
     ax_v_b = ax_v.twinx()

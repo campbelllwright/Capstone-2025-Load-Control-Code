@@ -95,10 +95,10 @@ if(dump != None):
     dump = Evo_EF.removeZeros(dump)
     energy_ecu = Evo_EF.calc_energy_from_pwr(dump[3], S_PER_FRAME)
     Evo_EF.graphEFDumpVsTheo(dump, load_data, "plots/"+filename+"both.png")
-    print(f"Race complete! filename:{filename}.[xyz], energy(Load/ECU):{int(energy_load*1000)}mJ/{int(energy_ecu*1000)}mJ, avg power(Load/ECU): {int(np.average(load_data[3])*1000)}mW/{int(np.average(dump[3])*1000)}mW")
+    print(f"Race complete! filename:{filename}.[xyz], energy(Load/ECU):{energy_load:.4f}J/{energy_ecu:.4f}J, avg power(Load/ECU): {np.average(load_data[3]):.4f}W/{np.average(dump[3]):.4f}W. accuracy = {((1-(energy_load/energy_ecu))*100):.4f}%")
 else: #no dump
     Evo_EF.graphLoad(load_data, "plots/"+filename+"load.png")
-    print(f"Race complete! filename:{filename}.[xyz], energy:{int(energy_load*1000)}mJ, avg power: {int(np.average(load_data[3])*1000)}mW")
+    print(f"Race complete! filename:{filename}.[xyz], energy:{energy_load:.4f}J, avg power: {np.average(load_data[3]):.4f}W.")
     
 # graph the data
 
