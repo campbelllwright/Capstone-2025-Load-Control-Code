@@ -51,35 +51,25 @@ rm = pyvisa.ResourceManager()
 rm.list_resources()
 ```
 
+## real_load_test.py usage/parameters:
 
-## More realistic load profiles 'real_load_test.py'
+This script is designed to run a 'real' load profile derived from real F1 race data on the programmable load;
+Then Graph the load voltage, current, and power over time; and print the energy usage to the console.
+If your ECU is compatible, this script is also designed to dump the region of flash where energy data is stored, parse it, and plot that on the same graph as the load for comparison.
+(If you modify the dumper/parser to make it work with your implementation, please fork the repo and publish it so I may include it as another example).
 
-Once your hardware works with the standard 'load_control.py' you may want to test your hardware with a more realistic load profile. 
-The file ```real_load_test.py``` downloads real telemetry from formula one races and converts it into a load suitable for this project.  
-To run this file you must install the python library [FastF1](https://docs.fastf1.dev/index.html)
+#### This script has a number of arguments to modify the execution:
 
-Modify the config shown below to match your setup and desired load profile.
-```python
-## Config:
-LOADADDR = 'ASRL26::INSTR' # change to match assigned address for your computer/load - Takes form ASRL[COM port]::INSTR
-
-# Prog_load settings:
-RMIN = 4  # ohm
-RMAX = 100 # ohm
-T = 0.05 # load update period 
-
-# Board info: for calculating theoretical values
-RSHUNT = 0.092 # ohm
-VSUPPLY = 12 # volt
-
-# Profile Settings:
-EVENT ='Monza'
-RACE_TYPE = 'Q'
-YEAR = 2023
-DRIVER = 'VER'
-
-```
-
+```-r, --reboot, --no-reboot``` - Reboot the pico before starting the load profile. this happens by default, to not reboot use --no-reboot.  
+```-d, --dump, --no-dump``` - Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default yes.
+```--csvout, --no-csvout``` - output the load (and ECU if available) data from the run as CSVs.   
+```-l, --loadport``` - COM port number of programmable load. **Required.** (e.x. if load is COM19, run ```python real_load_test.py -l 19```)  
+```--ecurate``` - ECU Storage rate (Hz). (how many samples do you store to flash per second. only needed if dumping.)  
+Race/driver selection for load profile: (we use fastest lap)  
+```--driver``` - F1 driver for load profile.  
+```--event``` - F1 event for load profile.  
+```--racetype``` - F1 event type for load profile.  
+```--year``` - F1 year for load profile.  
 
 ## Issues 
 For any issues specifically related to these scripts, email [campbell.wright@auckland.ac.nz](mailto:campbell.wright@auckland.ac.nz).
