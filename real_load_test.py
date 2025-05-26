@@ -95,7 +95,7 @@ if(arguments.dump):
 
 
 
-if((dump != None) and (arguments.dump)):
+if((arguments.dump) and (dump != None)):
     dump = Evo_EF.removeZeros(dump)
     energy_ecu = Evo_EF.calc_energy_from_pwr(dump[3], S_PER_FRAME)
     if(arguments.load):
@@ -112,7 +112,7 @@ else: #no dump
 if(arguments.csvout):
     if(arguments.load):
         Evo_EF.writeCSV_single(load_data, res_data, f"results/{filename}_load.csv")
-    if((dump != None) and (arguments.dump)):
+    if((arguments.dump) and(dump != None)):
         Evo_EF.writeCSV_single(dump, res_data, f"results/{filename}_ECU.csv")
 #calculate energy
 
