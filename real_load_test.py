@@ -9,7 +9,7 @@ import picotool_helper_funcs as pico
 import EVolocity_EF_utils as Evo_EF
 import evolocity_load as EVOload
 import datetime as date
-import msvcrt
+#import msvcrt
 
 import argparse
 arguments_parser = argparse.ArgumentParser("EVOlocity_Load_test")
