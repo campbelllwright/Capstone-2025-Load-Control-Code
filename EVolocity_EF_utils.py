@@ -185,23 +185,7 @@ def calc_energy_from_pwr(power_frames, rate):
 
 
           
-def writeCSV(load_frames, dump_frames, r_data, filename):
-    if(os.path.exists(filename)):
-        csvfile = open(filename, '+w', newline='')
-    else:
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        csvfile = open(filename, 'x', newline='')
-        
-    csvwriter = csv.writer(csvfile,lineterminator="\n", delimiter=',',)
-    if(dump_frames != None):
-        csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance', 'ECU Voltage', 'ECU Current', 'ECU Power'])
-        for (i,t) in enumerate(load_frames[0]):
-            csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i], dump_frames[1][i],dump_frames[2][i],dump_frames[3][i]])
-    else:
-        csvwriter.writerow(['Timestamp','Load Voltage','Load Current','Load Power','Load Resistance'])
-        for (i,t) in enumerate(load_frames[0]):
-            csvwriter.writerow([int(load_frames[0][i]*1000),load_frames[1][i],load_frames[2][i],load_frames[3][i], r_data[i]])
-            
+
 def writeCSV_single(load_frames, r_data, filename):
     if(os.path.exists(filename)):
         csvfile = open(filename, '+w', newline='')

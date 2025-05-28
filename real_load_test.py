@@ -8,13 +8,15 @@ import pyvisa as visa
 import picotool_helper_funcs as pico
 import EVolocity_EF_utils as Evo_EF
 import evolocity_load as EVOload
+import datetime as date
+import msvcrt
 
 import argparse
 arguments_parser = argparse.ArgumentParser("EVOlocity_Load_test")
 arguments_parser.add_argument("-r","--reboot", action=argparse.BooleanOptionalAction, default=True, help="Reboot the pico before starting the run. Default yes.")
-arguments_parser.add_argument("-d","--dump", action=argparse.BooleanOptionalAction, default=True, help = "Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default yes.")
-arguments_parser.add_argument("--csvout", action=argparse.BooleanOptionalAction, default=True, help="output the load (and ECU) data from the run as a CSV - note this may be buggy if sample and load rate are not matched.")
-arguments_parser.add_argument("--load", action=argparse.BooleanOptionalAction, default=True, help="Load is not connected")
+arguments_parser.add_argument("-d","--dump", action=argparse.BooleanOptionalAction, default=False, help = "Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default no.")
+arguments_parser.add_argument("--csvout", action=argparse.BooleanOptionalAction, default=False, help="output the load (and ECU) data from the run as a CSV - note this may be buggy if sample and load rate are not matched.")
+arguments_parser.add_argument("--load", action=argparse.BooleanOptionalAction, default=True, help="Load is connected - default TRUE")
 arguments_parser.add_argument("-l","--loadport", type=int, help="COM port number of programmable load. Required.", required=True)
 arguments_parser.add_argument("--driver", type=str, default='VER', help="F1 driver for load profile.")
 arguments_parser.add_argument("--event", type=str, default='Monza', help="F1 event for load profile.")
@@ -33,6 +35,7 @@ LOADADDR = f'ASRL{arguments.loadport}::INSTR' # change to match assigned address
 
 T = 0.05 # load update period 
 
+
 FRAME_RATE = arguments.ecurate #recording/transmission rate of pico
 MS_PER_FRAME = 1000/FRAME_RATE
 S_PER_FRAME = 1/FRAME_RATE
@@ -50,6 +53,8 @@ if(arguments.load):
     load = EVOload.setup_load(LOADADDR)
 
 R = EVOload.get_Rload_from_fastf1(arguments.driver, arguments.year, arguments.event, arguments.racetype)
+
+#T = (100/len(R))
 
 load_data = [[],[],[],[]]
 
@@ -71,7 +76,9 @@ if(arguments.reboot):
 print('Starting experiment')
 if(arguments.load):
     load.write(':INPut ON') # turn on load 
+    print(f"staring load profile at dateTime {time.ctime(time.time())}")
     EVOload.timed_loop_with_enumerate(R,T, load,write_load) #change load to next R every T seconds
+    print(f"stopping load profile at dateTime {time.ctime(time.time())}")
     load.write(':INPut OFF') # ensure load off 
 
 # print the theo data to terminal
@@ -84,6 +91,9 @@ if(arguments.load):
 else:
     energy_load = 0
     
+print("press key to continue")
+#msvcrt.getch()
+
 
 if(arguments.dump):
     print(pico.picotool_force_reboot_ecu_bootsel()) #Reboot ECU into bootsel mode to dump flash

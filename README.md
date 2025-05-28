@@ -59,9 +59,10 @@ If your ECU is compatible, this script is also designed to dump the region of fl
 (If you modify the dumper/parser to make it work with your implementation, please fork the repo and publish it so I may include it as another example).
 
 #### This script has a number of arguments to modify the execution:
+the standard command to run the load without rebooting the pico would be: ```python real_load_test.py -l \[LOAD COM PORT\] --no-reboot```
 
 ```-r, --reboot, --no-reboot``` - Reboot the pico before starting the load profile. this happens by default, to not reboot use --no-reboot.  
-```-d, --dump, --no-dump``` - Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default yes.
+```-d, --dump, --no-dump``` - Reboot the pico into BOOTSEL mode and Dump energy data from flash after the run. Default no.
 ```--csvout, --no-csvout``` - output the load (and ECU if available) data from the run as CSVs.   
 ```-l, --loadport``` - COM port number of programmable load. **Required.** (e.x. if load is COM19, run ```python real_load_test.py -l 19```)  
 ```--ecurate``` - ECU Storage rate (Hz). (how many samples do you store to flash per second. only needed if dumping.)  
